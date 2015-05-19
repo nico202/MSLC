@@ -201,25 +201,59 @@ elif task == 'generate':
     meanVerseLen = meanLines / meanVerse
     print "Info: generating lines of lenght: %s words, %s verse lines, %s verses" % (meanLineLen, meanVerseLen, meanVerse)
     
-    first_word = item
-    c.execute('SELECT `nextword` FROM assoc WHERE word LIKE ? ORDER BY RANDOM () LIMIT 1 ', (first_word,))
-    current_word = c.fetchone()[0]
-    prec_word = first_word
-    generated_line = first_word + " " + current_word
-    for gen_song in range (0, int(meanVerse)):
-        for gen_verse in range(0,int(meanVerseLen)):
-            for gen_word in range(0,int(meanLineLen)):
-                d.execute('SELECT `nextword` FROM assoc WHERE `word` LIKE ? AND `precWord` LIKE ? ORDER BY RANDOM () LIMIT 1 ', (current_word,prec_word,))
-                prec_word = current_word
-                current_word = d.fetchone()[0]
-                if not current_word:
-                    d.execute('SELECT `nextword` FROM assoc WHERE `word` LIKE ? ORDER BY RANDOM () LIMIT 1 ', (current_word,))
-                    prec_word = current_word
-                    current_word = d.fetchone()[0]
-                    
-                generated_line += " " + current_word
-                print generated_line
-        print '\n'
+    
+    for gen_verse in range (0, int(meanVerse)): # 15 versi
+        print "NEW VERSE (%s)" % (gen_verse)
+        for gen_line in range(0,int(meanVerseLen)): # 3 linee
+            print "NEW LINE (%s)" % (gen_line)
+            #Decide the word to start with: NOT NULL, WITHOUT A PRECEDING WORD; WITH A FOLLOWING WORD
+            c.execute('SELECT `word` FROM assoc WHERE `precWord` == "" AND `word` != "" AND `nextWord` != "" ORDER BY RANDOM () LIMIT 1')
+            prec_word = c.fetchone()[0]
+            for gen_word in range(0,int(meanLineLen)): #6 parole
+                #Use that word to gen N words
+                c.execute('SELECT `word` FROM assoc WHERE `precWord` = ? AND `word` != "" ORDER BY RANDOM () LIMIT 1', (prec_word,))
+                try:
+                    prec_word = c.fetchone()[0]
+                except:
+                    prec_word = ""
+                print prec_word,
+            
+            print "\n"
+        print "\n"
+
+##OLD TRY
+    #for gen_verse in range (0, int(meanVerse)): # 15 versi
+        #print "NEW VERSE"
+        #for gen_line in range(0,int(meanVerseLen)): # 3 linee
+            #c.execute('SELECT `word`,`precWord` FROM assoc WHERE `precWord` != "" AND `word` != "" ORDER BY RANDOM () LIMIT 1')
+            #got = c.fetchone()
+            #current_word = got[0]
+            #prec_word = got[1]
+            #generated_line = prec_word + " " + current_word
+            #for gen_word in range(0,int(meanLineLen)): #6 parole
+                #print gen_word
+                #if (gen_word >= int(meanLineLen) - 4): #FAKE STD
+                    #d.execute('SELECT `nextword` FROM assoc WHERE `word` LIKE ? ORDER BY RANDOM () LIMIT 1 ', (current_word,))
+                #elif (gen_word >= int(meanLineLen) + 4): #Another FAKE STD
+                    ##If we are too high on the lengh, force the end (nextWord =="")
+                    #d.execute('SELECT `nextword` FROM assoc WHERE `nextWord` == "" ORDER BY RANDOM () LIMIT 1 ')
+                #else:
+                    #d.execute('SELECT `nextword` FROM assoc WHERE `word` LIKE ? AND `precWord` LIKE ? ORDER BY RANDOM () LIMIT 1 ', (current_word,prec_word,))
+
+                #prec_word = current_word
+                #current_word = d.fetchone()[0]
+                ##TODO: While per arrivare a lunghezza - deviazione std. Poi aspetta una parola vuota. Interrompe di forza a lunghezza + 1 deviazione.
+                #if not current_word:
+                    #d.execute('SELECT `nextword` FROM assoc WHERE `word` LIKE ? ORDER BY RANDOM () LIMIT 1 ', (current_word,))
+                    #prec_word = current_word
+                    #current_word = d.fetchone()[0]
+                    #if current_word:
+                        #generated_line += " " + current_word
+                    #else:
+                        #break
+                #print generated_line
+        #print '\n'
+        #print "END OF THE VERSE"
 
 
     
