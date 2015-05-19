@@ -199,13 +199,13 @@ elif task == 'generate':
     meanVerse = stats[2]
     meanLineLen = meanWords / meanLines
     meanVerseLen = meanLines / meanVerse
-    print "Info: generating lines of lenght: %s words, %s verse lines, %s verses" % (meanLineLen, meanVerseLen, meanVerse)
+    print "Info: generating lines of lenght: %s words, %s verse lines, %s verses\n" % (meanLineLen, meanVerseLen, meanVerse)
     
     
     for gen_verse in range (0, int(meanVerse)): # 15 versi
-        print "NEW VERSE (%s)" % (gen_verse)
+        #print "NEW VERSE (%s)" % (gen_verse)
         for gen_line in range(0,int(meanVerseLen)): # 3 linee
-            print "NEW LINE (%s)" % (gen_line)
+            #print "NEW LINE (%s)" % (gen_line)
             #Decide the word to start with: NOT NULL, WITHOUT A PRECEDING WORD; WITH A FOLLOWING WORD
             c.execute('SELECT `word` FROM assoc WHERE `precWord` == "" AND `word` != "" AND `nextWord` != "" ORDER BY RANDOM () LIMIT 1')
             prec_word = c.fetchone()[0]
@@ -218,7 +218,7 @@ elif task == 'generate':
                     prec_word = ""
                 print prec_word,
             
-            print "\n"
+            print "\n",
         print "\n"
 
 ##OLD TRY
