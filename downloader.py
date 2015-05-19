@@ -16,7 +16,7 @@ def count_letters(word):
     return len([letter for letter in word if letter not in BAD_LETTERS])
 
 def clear_word(word):
-    TO_REMOVE = '''()?![]{}=,;:.-+*/\\|'''
+    TO_REMOVE = '''()?![]{}=,;:".-+*/\\|'''
     return "".join([letter for letter in word if letter not in TO_REMOVE])
 
 try:
