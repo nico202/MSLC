@@ -1,5 +1,7 @@
 #This script will download all the lyrics from the given site(s) and get info (BPM, genre, etc) about them
 #Save all to a db
+
+
 from lxml import html
 import urllib
 import requests
@@ -8,8 +10,15 @@ import sqlite3
 import os.path
 import sys
 import ast
+from random import randint
 
 network_error_message = "Network error, try again"
+
+def is_number(num):
+    try:
+        return int(num)
+    except:
+        return False
 
 def count_letters(word):
     BAD_LETTERS = " "
@@ -30,6 +39,7 @@ except:
 is_new_session = not os.path.isfile('lyricsdb.sqlite')
 
 db = sqlite3.connect('lyricsdb.sqlite')
+
 c = db.cursor()
 d = db.cursor()
 if is_new_session:
@@ -51,7 +61,7 @@ if task == 'download':
 
         #Download last 5 years' top songs
         page = {}
-        for year in range(now-5,now):
+        for year in range(now-10,now):
             
             #Don't download songs we already have
             c.execute('SELECT 1 FROM hits WHERE `year` = ?', (year,))
@@ -166,6 +176,7 @@ elif task == 'analyse':
         else:
             print "Analysing %s from %s ..." % (title, artist),
             for line in lyric:
+                
                 a = ""
                 b = ""
                 c = ""
@@ -183,12 +194,13 @@ elif task == 'analyse':
                 c = ""
                 to_add = [artist, title, b, "", "", c, a]
                 db.execute('INSERT INTO assoc VALUES ( ?,?,?,?,?,?,? )', to_add)
+                
             db.commit()
             print "... done!"
 
 elif task == 'generate':
     #Get mean line word lenght
-    c.execute('SELECT AVG(`wordNumbers`), AVG(`linesNumber`), AVG(`versesNumber`) from lyrics')
+    c.execute('SELECT AVG(`wordNumbers`), AVG(`linesNumber`), AVG(`versesNumber`) FROM lyrics')
     stats = c.fetchone()
     if not stats:
         print "Error with the db"
@@ -202,58 +214,57 @@ elif task == 'generate':
     print "Info: generating lines of lenght: %s words, %s verse lines, %s verses\n" % (meanLineLen, meanVerseLen, meanVerse)
     
     
-    for gen_verse in range (0, int(meanVerse)): # 15 versi
+    for gen_verse in range (0, int(meanVerse)+randint(-3,3)): # 15 versi
         #print "NEW VERSE (%s)" % (gen_verse)
-        for gen_line in range(0,int(meanVerseLen)): # 3 linee
+        for gen_line in range(0,int(meanVerseLen)+randint(-2,2)): # 3 linee
             #print "NEW LINE (%s)" % (gen_line)
             #Decide the word to start with: NOT NULL, WITHOUT A PRECEDING WORD; WITH A FOLLOWING WORD
             c.execute('SELECT `word` FROM assoc WHERE `precWord` == "" AND `word` != "" AND `nextWord` != "" ORDER BY RANDOM () LIMIT 1')
-            prec_word = c.fetchone()[0]
-            for gen_word in range(0,int(meanLineLen)): #6 parole
-                #Use that word to gen N words
-                c.execute('SELECT `word` FROM assoc WHERE `precWord` = ? AND `word` != "" ORDER BY RANDOM () LIMIT 1', (prec_word,))
-                try:
-                    prec_word = c.fetchone()[0]
-                except:
-                    prec_word = ""
-                print prec_word,
+            next_word = c.fetchone()[0]
+            current_word = ""
             
+            for gen_word in range(0,(int(meanLineLen)+randint(-3,3))): #6 parole
+                prec_word = current_word
+                current_word = next_word
+                #prevent same-word-loop.
+                if (current_word == prec_word):
+                    QUERY = 'SELECT `nextWord` FROM assoc WHERE `precWord` LIKE ? AND `word` != ? AND `nextWord` != "" ORDER BY RANDOM () LIMIT 1'
+                    QUERY_LIMIT = 'SELECT `nextWord` FROM assoc WHERE `precWord` LIKE ? AND `word` != ? ORDER BY RANDOM () LIMIT 1'
+                else:
+                    #prec_word = '%prec_word%'
+                    QUERY = 'SELECT `nextWord` FROM assoc WHERE `precWord` LIKE ? AND `word` = ? AND `nextWord` != "" ORDER BY RANDOM () LIMIT 1'
+                    QUERY_LIMIT = 'SELECT `nextWord` FROM assoc WHERE `precWord` LIKE ? AND `word` = ? ORDER BY RANDOM () LIMIT 1'
+                #Use that word to gen N words
+                # We could use len(x) to get the exact number of letters
+                # With LIKE % & LIKE _ we can search for "rhyming" words (difficult in english)
+                if (gen_word <= int (meanLineLen) - 4): # far from desired lenght. Let nextWord exist
+                    c.execute(QUERY, (prec_word,current_word,))
+                elif (gen_word <= int (meanLineLen) + 4): #approching to meanLineLen. nextWord can be unexistent
+                    c.execute(QUERY_LIMIT, (prec_word,current_word,))
+                else: #last needed word. Force it not to exist
+                    c.execute('SELECT `nextWord` FROM assoc WHERE `precWord` = ? AND `word` = ? AND `nextWord` == "" ORDER BY RANDOM () LIMIT 1', (prec_word,current_word,))
+                try:
+                    next_word = c.fetchone()[0]
+                except:
+                    try:
+                        if (gen_word <= int (meanLineLen) - 4): # far from desired lenght. Let nextWord exist
+                            c.execute('SELECT `word` FROM assoc WHERE `precWord` = ? AND `word` != "" AND `nextWord` != ? ORDER BY RANDOM () LIMIT 1', (prec_word,current_word,))
+                        elif (gen_word == int (meanLineLen)): #approching to meanLineLen. nextWord can be unexistent
+                            c.execute('SELECT `word` FROM assoc WHERE `precWord` = ? AND `word` != "" ORDER BY RANDOM () LIMIT 1', (current_word,))
+                        else: #last needed word. Force it not to exist
+                            c.execute('SELECT `word` FROM assoc WHERE `precWord` = ? AND `word` != "" AND `nextWord` == "" ORDER BY RANDOM () LIMIT 1', (current_word,))
+                    except:
+                        try:
+                            next_word = c.fetchone()[0]
+                        except:
+                            next_word = ""
+                            break
+                if is_number(next_word):
+                    randint(0,int(next_word))
+                print next_word.encode("utf-8"),
+                
             print "\n",
         print "\n"
-
-##OLD TRY
-    #for gen_verse in range (0, int(meanVerse)): # 15 versi
-        #print "NEW VERSE"
-        #for gen_line in range(0,int(meanVerseLen)): # 3 linee
-            #c.execute('SELECT `word`,`precWord` FROM assoc WHERE `precWord` != "" AND `word` != "" ORDER BY RANDOM () LIMIT 1')
-            #got = c.fetchone()
-            #current_word = got[0]
-            #prec_word = got[1]
-            #generated_line = prec_word + " " + current_word
-            #for gen_word in range(0,int(meanLineLen)): #6 parole
-                #print gen_word
-                #if (gen_word >= int(meanLineLen) - 4): #FAKE STD
-                    #d.execute('SELECT `nextword` FROM assoc WHERE `word` LIKE ? ORDER BY RANDOM () LIMIT 1 ', (current_word,))
-                #elif (gen_word >= int(meanLineLen) + 4): #Another FAKE STD
-                    ##If we are too high on the lengh, force the end (nextWord =="")
-                    #d.execute('SELECT `nextword` FROM assoc WHERE `nextWord` == "" ORDER BY RANDOM () LIMIT 1 ')
-                #else:
-                    #d.execute('SELECT `nextword` FROM assoc WHERE `word` LIKE ? AND `precWord` LIKE ? ORDER BY RANDOM () LIMIT 1 ', (current_word,prec_word,))
-
-                #prec_word = current_word
-                #current_word = d.fetchone()[0]
-                ##TODO: While per arrivare a lunghezza - deviazione std. Poi aspetta una parola vuota. Interrompe di forza a lunghezza + 1 deviazione.
-                #if not current_word:
-                    #d.execute('SELECT `nextword` FROM assoc WHERE `word` LIKE ? ORDER BY RANDOM () LIMIT 1 ', (current_word,))
-                    #prec_word = current_word
-                    #current_word = d.fetchone()[0]
-                    #if current_word:
-                        #generated_line += " " + current_word
-                    #else:
-                        #break
-                #print generated_line
-        #print '\n'
-        #print "END OF THE VERSE"
 
 
     
